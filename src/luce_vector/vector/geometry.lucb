@@ -1,0 +1,51 @@
+#==============================================================================================
+#
+#   vector/geometry - Hit testing an element
+#
+#   DESCRIPTION:
+#       A spec parsed into a luce-svg drawing at the canvas's size, and whether a point lies
+#       inside its fill or within reach of its outline.
+#
+#==============================================================================================
+
+## `spec` parsed over the `width` by `height` canvas, its points in document pixels.
+pub func spec_drawing(spec: ShapeSpec, width: u32, height: u32) -> interop.Reference[svg.Drawing]!:
+    var text = try strings.Builder.create()
+    defer text.destroy()
+    try shape_svg(&text, spec, 0, 0, width, height)
+    return try svg.parse(text.view())
+
+## Whether (`x`, `y`) is on `spec`: inside its fill by the nonzero rule, or near its outline.
+pub func spec_hit(spec: ShapeSpec, width: u32, height: u32, x: f64, y: f64, reach: f64) -> bool!:
+    let parsed = try spec_drawing(spec, width, height)
+    defer parsed.release()
+    let drawing = parsed.value()
+    let stroked = spec.stroked or spec.kind == 2
+    let band = reach + (spec.stroke_width * 0.5 if stroked else 0.0)
+    var winding: i32 = 0
+    for contour in 0..<drawing.contour_count():
+        let start = drawing.contour_start(contour)
+        let size = drawing.contour_size(contour)
+        for index in 0..<size:
+            let a = drawing.point(start + index)
+            let b = drawing.point(start + (index + 1) % size)
+            if segment_distance(x, y, a.x, a.y, b.x, b.y) <= band:
+                return true
+            if drawing.contour_filled(contour):
+                if a.y <= y and y < b.y and cross(a.x, a.y, b.x, b.y, x, y) > 0.0:
+                    winding += 1
+                elif b.y <= y and y < a.y and cross(a.x, a.y, b.x, b.y, x, y) < 0.0:
+                    winding -= 1
+    return winding != 0
+
+## Which side of the line through a and b the point p lies (positive: left, y down).
+pub func cross(ax: f64, ay: f64, bx: f64, by: f64, px: f64, py: f64) -> f64:
+    return (bx - ax) * (py - ay) - (px - ax) * (by - ay)
+
+## How far (`px`, `py`) is from the segment a b.
+func segment_distance(px: f64, py: f64, ax: f64, ay: f64, bx: f64, by: f64) -> f64:
+    let dx = bx - ax
+    let dy = by - ay
+    let length = dx * dx + dy * dy
+    let t = math.clamp(((px - ax) * dx + (py - ay) * dy) / length, 0.0, 1.0) if length > 0.0 else 0.0
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))

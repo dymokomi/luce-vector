@@ -1,0 +1,111 @@
+#==============================================================================================
+#
+#   vector/elements - A vector layer's elements
+#
+#   DESCRIPTION:
+#       An element is a named, shown or hidden ShapeSpec; a layer holds a list of them, bottom
+#       first, heap storage the list owns. An edit builds a new list beside the old one
+#       (`list_with`, `list_without`) so an edit that cannot be drawn changes nothing.
+#
+#==============================================================================================
+
+## One element of a vector layer.
+pub struct VectorElement:
+    ## Its name in the Vector panel, heap storage the element owns.
+    pub var name: str
+    pub var visible: bool = true
+    pub var spec: ShapeSpec
+
+## What a new element of `kind` is called.
+pub func kind_name(kind: i64) -> str:
+    if kind == 0:
+        return "Rectangle"
+    if kind == 1:
+        return "Ellipse"
+    if kind == 2:
+        return "Line"
+    if kind == 3:
+        return "Polygon"
+    return "Path"
+
+## An element named `name` drawn from `spec`, which it takes over (freed if it cannot be made).
+pub func made_element(name: str, spec: ShapeSpec) -> VectorElement!:
+    var owned = spec
+    var copied: str = ""
+    with memory.heap:
+        copied = strings.copy(name) catch failure:
+            release_spec_path(&owned)
+            error(failure.code, failure.message)
+    return VectorElement(name = copied, visible = true, spec = owned)
+
+## A copy of `element` that owns its own name and path.
+pub func copied_element(element: VectorElement) -> VectorElement!:
+    var copy = element
+    with memory.heap:
+        copy.name = try strings.copy(element.name)
+    errdefer strings.release(copy.name)
+    try copy_spec_path(&copy.spec)
+    return copy
+
+pub func release_element(element: VectorElement*):
+    strings.release(element.name)
+    release_spec_path(&element.spec)
+
+## A copy of `list`, every element its own.
+pub func copied_list(list: const VectorElement[]) -> VectorElement[]!:
+    var none_yet: VectorElement[]
+    if list.length == 0:
+        return none_yet
+    let copies = try alloc VectorElement[list.length] in memory.heap
+    for at in 0..<list.length:
+        copies[at] = copied_element(list[at]) catch failure:
+            for done in 0..<at:
+                release_element(&copies[done])
+            free(copies) in memory.heap
+            error(failure.code, failure.message)
+    return copies
+
+## Free a list and every element in it.
+pub func free_list(list: VectorElement[]):
+    for at in 0..<list.length:
+        release_element(&list[at])
+    if list.length > 0:
+        free(list) in memory.heap
+
+## `list` with `element` put in at `at`, taking both over (freed if it cannot).
+pub func list_with(list: VectorElement[], at: usize, element: VectorElement) -> VectorElement[]!:
+    var added = element
+    let grown = alloc VectorElement[list.length + 1] in memory.heap catch failure:
+        release_element(&added)
+        free_list(list)
+        error(failure.code, failure.message)
+    for index in 0..<at:
+        grown[index] = list[index]
+    grown[at] = added
+    for index in at..<list.length:
+        grown[index + 1] = list[index]
+    if list.length > 0:
+        free(list) in memory.heap
+    return grown
+
+## `list` without element `at`, which is freed; takes the list over.
+pub func list_without(list: VectorElement[], at: usize) -> VectorElement[]!:
+    release_element(&list[at])
+    var none_left: VectorElement[]
+    if list.length == 1:
+        free(list) in memory.heap
+        return none_left
+    let shrunk = alloc VectorElement[list.length - 1] in memory.heap catch failure:
+        # Element `at` is gone already: free the rest around it.
+        for index in 0..<list.length:
+            if index != at:
+                release_element(&list[index])
+        free(list) in memory.heap
+        error(failure.code, failure.message)
+    var to: usize = 0
+    for index in 0..<list.length:
+        if index != at:
+            shrunk[to] = list[index]
+            to += 1
+    free(list) in memory.heap
+    return shrunk

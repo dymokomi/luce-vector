@@ -1,0 +1,157 @@
+#==============================================================================================
+#
+#   vector/shapes - What a vector element is drawn from
+#
+#   DESCRIPTION:
+#       A ShapeSpec: a rectangle, ellipse, line, polygon or Bézier path with its fill, stroke
+#       and matrix, its values by number (as a panel and the .l2d manifest read them), and
+#       the SVG text luce-svg parses to draw it.
+#
+#==============================================================================================
+
+## What a vector element is drawn from.
+pub struct ShapeSpec:
+    ## 0 rectangle, 1 ellipse, 2 line, 3 polygon, 4 path.
+    pub var kind: i64
+    ## The box in the shape's own space; a line runs from its top-left to its bottom-right.
+    pub var x: f64
+    pub var y: f64
+    pub var width: f64
+    pub var height: f64
+    ## A polygon's corners and a rectangle's corner radius.
+    pub var sides: i64 = 5
+    pub var radius: f64
+    ## The fill and the stroke, colors in linear light.
+    pub var filled: bool = true
+    pub var fill_red: f64
+    pub var fill_green: f64
+    pub var fill_blue: f64
+    pub var stroked: bool
+    pub var stroke_red: f64
+    pub var stroke_green: f64
+    pub var stroke_blue: f64
+    pub var stroke_width: f64 = 1.0
+    ## Shape space to document pixels: (a·x + c·y + e, b·x + d·y + f).
+    pub var matrix: f64[6] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+    ## A path's anchors in shape space, six values each: the point, the handle
+    ## coming in and the handle going out (a corner's handles sit on it). Heap
+    ## storage its element owns (paths.lucb); empty for the other kinds.
+    pub var path: f64[]
+    pub var closed: bool = false
+    ## Anchors in each run when the path has several (an SVG outline with a hole),
+    ## heap storage like `path`; empty for one run.
+    pub var subpaths: u32[]
+
+## The number of a spec's values `layer_shape_value` reads, in `shape_values` order.
+let shape_value_count: i64 = 23
+
+## A spec's values by number: kind, x, y, width, height, sides, radius,
+## filled, the fill color, stroked, the stroke color, the stroke width, then
+## the six of the matrix.
+pub func shape_values(spec: ShapeSpec) -> f64[23]:
+    return [(f64)spec.kind, spec.x, spec.y, spec.width, spec.height, (f64)spec.sides, spec.radius,
+            1.0 if spec.filled else 0.0, spec.fill_red, spec.fill_green, spec.fill_blue,
+            1.0 if spec.stroked else 0.0, spec.stroke_red, spec.stroke_green, spec.stroke_blue, spec.stroke_width,
+            spec.matrix[0], spec.matrix[1], spec.matrix[2], spec.matrix[3], spec.matrix[4], spec.matrix[5], 0.0]
+
+## The spec from values in `shape_values` order.
+pub func shape_from_values(values: const f64[]) -> ShapeSpec!:
+    if values.length < 22:
+        error(invalid, "a shape takes 22 values")
+    for value in values:
+        if not math.is_finite(value):
+            error(invalid, "shape values must be finite")
+    let kind = (i64)values[0]
+    if kind < 0 or kind > 4:
+        error(invalid, "a shape is 0 a rectangle, 1 an ellipse, 2 a line, 3 a polygon or 4 a path")
+    return ShapeSpec(kind = kind, x = values[1], y = values[2], width = values[3], height = values[4], sides = (i64)math.max(3.0, math.min(64.0, values[5])),
+                     radius = math.max(0.0, values[6]), filled = values[7] != 0.0, fill_red = values[8], fill_green = values[9], fill_blue = values[10],
+                     stroked = values[11] != 0.0, stroke_red = values[12], stroke_green = values[13], stroke_blue = values[14], stroke_width = math.max(0.0, values[15]),
+                     matrix = [values[16], values[17], values[18], values[19], values[20], values[21]])
+
+## `spec` as a one-element SVG document whose viewBox is the `width` by `height`
+## window of the canvas from (`left`, `top`), a pixel a unit.
+pub func shape_svg(out: strings.Builder*, spec: ShapeSpec, left: u32, top: u32, width: u32, height: u32) -> !:
+    try svg_open(out, left, top, width, height)
+    try shape_group(out, spec)
+    try out.put("</svg>")
+
+## An SVG document's opening tag over the canvas window from (`left`, `top`).
+func svg_open(out: strings.Builder*, left: u32, top: u32, width: u32, height: u32) -> !:
+    var line: u8[256]
+    try out.put(try format(line, f"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{left} {top} {width} {height}\">"))
+
+## `spec` as one SVG element in a group carrying its transform: several of them,
+## one after another, make a vector layer's drawing in paint order.
+func shape_group(out: strings.Builder*, spec: ShapeSpec) -> !:
+    var line: u8[512]
+    let m = spec.matrix
+    try out.put(try format(line, f"<g transform=\"matrix({svg_fine(m[0])} {svg_fine(m[1])} {svg_fine(m[2])} {svg_fine(m[3])} {svg_brief(m[4])} {svg_brief(m[5])})\">"))
+    var fill_text: u8[16]
+    var stroke_text: u8[16]
+    let fill = try hex_color(fill_text, spec.fill_red, spec.fill_green, spec.fill_blue) if spec.filled and spec.kind != 2 else "none"
+    let stroked = spec.stroked or spec.kind == 2
+    let stroke = try hex_color(stroke_text, spec.stroke_red, spec.stroke_green, spec.stroke_blue) if stroked else "none"
+    # The stroke width is in document pixels; SVG scales it by the transform, so it is
+    # written in shape space.
+    let scale = math.sqrt(math.abs(m[0] * m[3] - m[1] * m[2]))
+    let width_in_shape = spec.stroke_width / scale if scale > 1e-9 else spec.stroke_width
+    var paint: u8[160]
+    let paints = try format(paint, f"fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{width_in_shape}\" stroke-linejoin=\"miter\"")
+    if spec.kind == 0:
+        let rounding = math.min(spec.radius, math.min(math.abs(spec.width), math.abs(spec.height)) * 0.5)
+        try out.put(try format(line, f"<rect x=\"{spec.x}\" y=\"{spec.y}\" width=\"{spec.width}\" height=\"{spec.height}\" rx=\"{rounding}\" {paints}/>"))
+    elif spec.kind == 1:
+        try out.put(try format(line, f"<ellipse cx=\"{spec.x + spec.width * 0.5}\" cy=\"{spec.y + spec.height * 0.5}\" rx=\"{spec.width * 0.5}\" ry=\"{spec.height * 0.5}\" {paints}/>"))
+    elif spec.kind == 2:
+        try out.put(try format(line, f"<line x1=\"{spec.x}\" y1=\"{spec.y}\" x2=\"{spec.x + spec.width}\" y2=\"{spec.y + spec.height}\" stroke-linecap=\"round\" {paints}/>"))
+    elif spec.kind == 4 and spec.subpaths.length == 0 and cornered(spec.path):
+        # Corners only (a star, a polygon drawn with the Pen): its points, which
+        # luce-svg reads and draws without flattening a curve per side.
+        try out.put("<polygon points=\"" if spec.closed else "<polyline points=\"")
+        for at in 0..<spec.path.length // anchor_values:
+            try out.put(try format(line, f"{svg_brief(spec.path[at * anchor_values])},{svg_brief(spec.path[at * anchor_values + 1])} "))
+        try out.put(try format(line, f"\" stroke-linecap=\"round\" {paints}/>"))
+    elif spec.kind == 4:
+        try out.put("<path d=\"")
+        try path_d(out, spec)
+        try out.put(try format(line, f"\" stroke-linecap=\"round\" {paints}/>"))
+    else:
+        try out.put("<polygon points=\"")
+        for corner in 0..<spec.sides:
+            let angle = -math.pi / 2.0 + (f64)corner * 2.0 * math.pi / (f64)spec.sides
+            let px = spec.x + spec.width * 0.5 + math.cos(angle) * spec.width * 0.5
+            let py = spec.y + spec.height * 0.5 + math.sin(angle) * spec.height * 0.5
+            try out.put(try format(line, f"{svg_brief(px)},{svg_brief(py)} "))
+        try out.put(try format(line, f"\" {paints}/>"))
+    try out.put("</g>")
+
+## A coordinate to a ten-thousandth of a pixel, and a matrix's turn and scale to
+## a hundred-millionth: the drawing is the same, and its text, which luce-svg
+## reads a character at a time, a third as long for a graph's thousands of shapes.
+func svg_brief(value: f64) -> f64:
+    return math.round(value * 10000.0) / 10000.0 if math.abs(value) < 1e11 else value
+
+func svg_fine(value: f64) -> f64:
+    return math.round(value * 100000000.0) / 100000000.0 if math.abs(value) < 1e7 else value
+
+## Whether every anchor of `path` is a corner, both its handles on it.
+func cornered(path: const f64[]) -> bool:
+    for at in 0..<path.length // anchor_values:
+        let base = at * anchor_values
+        for handle in [2, 4]:
+            if path[base + (usize)handle] != path[base] or path[base + (usize)handle + 1] != path[base + 1]:
+                return false
+    return true
+
+## A linear color as `#rrggbb` in sRGB, the way SVG reads it.
+func hex_color(buffer: u8[], red: f64, green: f64, blue: f64) -> str!:
+    let digits = "0123456789abcdef"
+    buffer[0] = '#'
+    var at: usize = 1
+    for value in [red, green, blue]:
+        let byte = (usize)math.round(transfer.srgb_encode(math.clamp(value, 0.0, 1.0)) * 255.0)
+        buffer[at] = digits.bytes[byte // 16]
+        buffer[at + 1] = digits.bytes[byte % 16]
+        at += 2
+    return (str)buffer[..<7]

@@ -1,0 +1,131 @@
+#==============================================================================================
+#
+#   vector/svg_import - An SVG file's shapes as vector elements
+#
+#   DESCRIPTION:
+#       Each drawable element of an SVG becomes a ShapeSpec, in paint order, at the size a
+#       picture of it would be (luce-svg's svg_render: scaled up until its longer side is
+#       1024 pixels). luce-svg flattens each element's outlines to points, its transforms
+#       applied; they become a path of corner anchors, a run an outline, filled together by
+#       the nonzero rule, with the element's fill and stroke color in linear light. What the
+#       elements cannot keep — text, gradients, opacity — makes an SVG with text come in as
+#       pixels; gradients come in as their first color's flat paint and opacity as opaque.
+#
+#==============================================================================================
+
+## The most bytes an SVG brought in as vectors may be.
+let svg_vector_bytes: usize = (usize)64 << 20
+
+## An SVG's elements and the size they are drawn at.
+pub struct SvgVectors:
+    pub var list: VectorElement[]
+    pub var width: u32
+    pub var height: u32
+
+    pub mutating func close():
+        free_list(self.list)
+        var none_left: VectorElement[]
+        self.list = none_left
+
+## The SVG at `path` as vector elements, their top-left at the origin; none when it
+## holds text, which only pixels keep.
+pub func svg_vectors(path: str) -> SvgVectors?!:
+    var copied_path: str = ""
+    var bytes: u8[]
+    with memory.heap:
+        copied_path = try strings.copy(path)
+    defer strings.release(copied_path)
+    with memory.heap:
+        bytes = try files.read_limit((c_api.str)copied_path, svg_vector_bytes)
+    defer free(bytes) in memory.heap
+    let parsed = try svg.parse((str)bytes)
+    defer parsed.release()
+    let drawing = parsed.value()
+    if drawing.text_count() > 0:
+        return none
+    let view_width = drawing.view_width()
+    let view_height = drawing.view_height()
+    if not (view_width > 0.0) or not (view_height > 0.0):
+        error(invalid, "the SVG has no size")
+    let scale = math.max(1.0, 1024.0 / math.max(view_width, view_height))
+    let width = math.ceil(view_width * scale)
+    let height = math.ceil(view_height * scale)
+    if width > 65536.0 or height > 65536.0:
+        error(invalid, "the SVG is too large to draw")
+    var list: VectorElement[]
+    var contour: usize = 0
+    let count = drawing.contour_count()
+    while contour < count:
+        # The contours of one element follow one another.
+        var end = contour + 1
+        while end < count and drawing.contour_element(end) == drawing.contour_element(contour):
+            end += 1
+        let found = svg_element_spec(drawing, contour, end, scale) catch failure:
+            free_list(list)
+            error(failure.code, failure.message)
+        if let spec = found:
+            var text: u8[48]
+            let name = format(text, f"Element {list.length + 1}") catch _:
+                recover "Element"
+            let element = made_element(name, spec) catch failure:
+                free_list(list)
+                error(failure.code, failure.message)
+            list = try list_with(list, list.length, element)
+        contour = end
+    return SvgVectors(list = list, width = (u32)width, height = (u32)height)
+
+## Contours `first..<end`, one element's, as a path spec at `scale` pixels a unit;
+## none when it paints nothing.
+func svg_element_spec(drawing: const svg.Drawing*, first: usize, end: usize, scale: f64) -> ShapeSpec?!:
+    var filled = false
+    var stroked = false
+    var anchors: usize = 0
+    var runs: usize = 0
+    for contour in first..<end:
+        filled = filled or drawing.contour_filled(contour)
+        stroked = stroked or drawing.contour_stroked(contour)
+        if drawing.contour_size(contour) > 0:
+            anchors += drawing.contour_size(contour)
+            runs += 1
+    if (not filled and not stroked) or anchors < 2 or anchors > file_anchor_limit:
+        return none
+    let fill = drawing.contour_fill_color(first)
+    let stroke = drawing.contour_stroke_color(first)
+    var spec = ShapeSpec(kind = 4, filled = filled, stroked = stroked, closed = drawing.contour_closed(first),
+                         stroke_width = drawing.contour_width(first) * scale, matrix = [scale, 0.0, 0.0, scale, 0.0, 0.0])
+    if filled and not drawing.contour_fill_current(first):
+        spec.fill_red = linear(fill.r)
+        spec.fill_green = linear(fill.g)
+        spec.fill_blue = linear(fill.b)
+    if stroked and not drawing.contour_stroke_current(first):
+        spec.stroke_red = linear(stroke.r)
+        spec.stroke_green = linear(stroke.g)
+        spec.stroke_blue = linear(stroke.b)
+    let path = try alloc f64[anchors * anchor_values] in memory.heap
+    spec.path = path
+    errdefer release_spec_path(&spec)
+    let sizes = try alloc u32[runs] in memory.heap
+    defer free(sizes) in memory.heap
+    var at: usize = 0
+    var run: usize = 0
+    for contour in first..<end:
+        let size = drawing.contour_size(contour)
+        if size == 0:
+            continue
+        sizes[run] = (u32)size
+        run += 1
+        let start = drawing.contour_start(contour)
+        for index in 0..<size:
+            let point = drawing.point(start + index)
+            # A corner: both handles on the point.
+            for value in 0..<(usize)3:
+                path[at + value * 2] = point.x
+                path[at + value * 2 + 1] = point.y
+            at += anchor_values
+    if runs > 1:
+        spec.subpaths = try owned_subpaths(sizes, anchors)
+    return spec
+
+## An SVG color component (sRGB-encoded, 0..1) in linear light.
+func linear(encoded: f64) -> f64:
+    return transfer.srgb_decode(math.clamp(encoded, 0.0, 1.0))

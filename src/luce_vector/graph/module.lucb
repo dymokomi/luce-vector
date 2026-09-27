@@ -1,0 +1,24 @@
+#==============================================================================================
+#
+#   graph - A vector layer's node graph
+#
+#   DESCRIPTION:
+#       Nodes make shapes, points and fields and pass them along wires to the output, which a
+#       vector layer draws over its own elements. Evaluation caches each node's value and
+#       computes again only downstream of an edit. Fragments, in ORDER:
+#
+#       module.lucb   imports
+#       nodes.lucb    what each kind of node is: its ports and parameters
+#       model.lucb    the graph: nodes, wires and their edits
+#       values.lucb   what flows along the wires
+#       eval.lucb     the graph evaluated into shapes
+#       files.lucb    the graph in a Prism manifest
+#       view.lucb     the elements and the graph's output together
+#
+#==============================================================================================
+
+import math
+import memory
+import prism
+from vector import CellMask, ShapeSpec, VectorElement, anchor_values, copy_spec_path, cross, drawable, no_numbers, read_numbers, release_spec_path, shape_values
+from raster_errors import invalid, limit

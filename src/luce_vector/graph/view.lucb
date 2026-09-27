@@ -1,0 +1,57 @@
+#==============================================================================================
+#
+#   graph/view - What a vector layer shows: its elements and its graph's output
+#
+#   DESCRIPTION:
+#       The graph's shapes are drawn over the layer's own elements; an edit to the graph
+#       marks the cells its changed shapes cover before and after.
+#
+#==============================================================================================
+
+## The elements a vector layer draws: `list`, then `generated`, as elements that
+## borrow their specs. Only the array is the caller's to free (`free_view`).
+pub func drawn_elements(list: const VectorElement[], generated: const ShapeList*) -> VectorElement[]!:
+    var none_yet: VectorElement[]
+    let total = list.length + generated.count
+    if total == 0:
+        return none_yet
+    let view = try alloc VectorElement[total] in memory.heap
+    for at in 0..<list.length:
+        view[at] = list[at]
+    for at in 0..<generated.count:
+        view[list.length + at] = VectorElement(name = "", visible = true, spec = generated.specs[at])
+    return view
+
+pub func free_view(view: VectorElement[]):
+    if view.length > 0:
+        free(view) in memory.heap
+
+## Mark the cells of every shape that differs between `before` and `after`, by
+## place, where it was and where it is.
+pub func mark_changed_shapes(cells: CellMask*, before: const ShapeList*, after: const ShapeList*) -> !:
+    let common = before.count if before.count < after.count else after.count
+    # When most of many change, finding their cells costs what drawing every
+    # cell does: all are drawn.
+    var differ = before.count + after.count - 2 * common
+    for at in 0..<common:
+        if not same_spec(&before.specs[at], &after.specs[at]):
+            differ += 2
+    if differ > 512 and differ > before.count + after.count // 2:
+        cells.mark_all()
+        return
+    # The changed ones gathered (sharing their paths) and marked from one drawing.
+    let changed = try alloc ShapeSpec[before.count + after.count + 1] in memory.heap
+    defer free(changed) in memory.heap
+    var count: usize = 0
+    for at in 0..<common:
+        if not same_spec(&before.specs[at], &after.specs[at]):
+            changed[count] = before.specs[at]
+            changed[count + 1] = after.specs[at]
+            count += 2
+    for at in common..<before.count:
+        changed[count] = before.specs[at]
+        count += 1
+    for at in common..<after.count:
+        changed[count] = after.specs[at]
+        count += 1
+    try cells.mark_specs(changed[..<count])

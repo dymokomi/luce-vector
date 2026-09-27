@@ -1,0 +1,97 @@
+#==============================================================================================
+#
+#   vector/render - A vector layer's elements drawn into its tiles
+#
+#   DESCRIPTION:
+#       The elements' cells are merged bottom up: an element's edge makes a cell an edge
+#       cell, and its inside, one opaque fill over everything below, makes the cell inside
+#       that element alone. Edge cells are drawn from bins of nearby elements a window at a
+#       time (windows.lucb); each element's inside cells come out one color, so one is drawn
+#       and the others share its tile.
+#
+#==============================================================================================
+
+## Draw `list`'s visible elements into `tiles` (a layer's pixels, as large as
+## the canvas): when `dirty` marks cells, only those, which the caller has
+## cleared; else every cell, into tiles with nothing painted.
+pub func draw_elements(tiles: Tiles*, list: const VectorElement[], dirty: CellMask*?) -> !:
+    let device = tiles.device()
+    let width = tiles.width()
+    let height = tiles.height()
+    let whole = ShapeReach(left = 0, top = 0, right = tile_columns(width), bottom = tile_columns(height))
+    var region = whole
+    if let cells = dirty:
+        region = cells.bounds() else return
+    # Every cell's kind for the elements together, and whose inside an inside cell is.
+    let cell_count = (usize)whole.right * (usize)whole.bottom
+    let kinds = try alloc u8[cell_count] in memory.heap
+    defer free(kinds) in memory.heap
+    memory.set(kinds, cell_outside)
+    let owners = try alloc u32[cell_count] in memory.heap
+    defer free(owners) in memory.heap
+    # The elements the region needs.
+    let chosen = try alloc ShapeSpec[list.length if list.length > 0 else 1] in memory.heap
+    defer free(chosen) in memory.heap
+    let places = try alloc u32[list.length if list.length > 0 else 1] in memory.heap
+    defer free(places) in memory.heap
+    var included: usize = 0
+    for at in 0..<list.length:
+        let spec = list[at].spec
+        if not list[at].visible or not drawable(spec):
+            continue
+        let reach = shape_reach(spec, width, height) else continue
+        if not reaches_overlap(reach, region):
+            continue
+        # Only what reaches a marked cell: an edit far from most of a graph's
+        # clones parses and sorts the few near it.
+        if let cells = dirty:
+            if not cells.touches(reach):
+                continue
+        chosen[included] = spec
+        places[included] = (u32)at
+        included += 1
+    if included == 0:
+        return
+    # Sorted into bins, each parsed once: every element's cells come from its
+    # bin's drawing, and each window is drawn from the elements near it.
+    var bins = try Bins.make(chosen[..<included], width, height)
+    defer bins.close()
+    for at in 0..<included:
+        var plan = try bins.plan(at, chosen[at]) else continue
+        merge_plan(&plan, dirty, kinds, owners, whole.right, places[at])
+        plan.close()
+    var painter = try WindowPainter.make(device, none, width, height)
+    defer painter.close()
+    try draw_binned(&painter, &bins, kinds, whole.right, whole.bottom, cell_edge, tiles, none)
+    try draw_insides(&painter, &bins, kinds, whole.right, whole.bottom, owners, list.length, tiles)
+
+## The inside cells: each element's first drawn, and when it comes out one color
+## the element's others share its tile; when not, they are drawn too.
+func draw_insides(painter: WindowPainter*, bins: const Bins*, kinds: u8[], columns: u32, rows: u32, owners: const u32[], elements: usize, tiles: Tiles*) -> !:
+    if elements == 0:
+        return
+    let samples = try alloc i64[elements] in memory.heap
+    defer free(samples) in memory.heap
+    for owner in 0..<elements:
+        samples[owner] = -1
+    for at in 0..<kinds.length:
+        if kinds[at] == cell_inside and samples[(usize)owners[at]] < 0:
+            samples[(usize)owners[at]] = (i64)at
+            kinds[at] = cell_sample
+    let uniform = try alloc u8[kinds.length] in memory.heap
+    defer free(uniform) in memory.heap
+    memory.set(uniform, 0)
+    try draw_binned(painter, bins, kinds, columns, rows, cell_sample, tiles, uniform)
+    for at in 0..<kinds.length:
+        if kinds[at] == cell_sample:
+            kinds[at] = cell_outside
+            continue
+        if kinds[at] != cell_inside:
+            continue
+        let sample = (usize)samples[(usize)owners[at]]
+        kinds[at] = cell_outside
+        if uniform[sample] != 0:
+            try tiles.share((u32)(at % (usize)columns), (u32)(at // (usize)columns), (u32)(sample % (usize)columns), (u32)(sample // (usize)columns))
+        else:
+            kinds[at] = cell_redraw
+    try draw_binned(painter, bins, kinds, columns, rows, cell_redraw, tiles, none)
