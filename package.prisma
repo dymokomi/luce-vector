@@ -1,59 +1,52 @@
 #prisma 4.0
 def package "luce-vector" {
     str owner = "dymokomi"
-    str version = "0.1.0"
+    str version = "0.2.0"
     str kind = "package"
     str language = "luce-base"
     str description = "Vector layers for luced-2d: shapes and Bézier paths drawn into luce-canvas tiles through luce-svg only where their edges are, redrawn only where an edit reaches, a node graph that generates shapes, their Prism files and SVG import."
     str readme = "README.md"
-
-    def export "vector" {
-        str module = "luce_vector.vector"
-    }
-
-    def export "graph" {
-        str module = "luce_vector.graph"
-    }
+    str[] public = ["graph", "vector"]
 
     def dependency "luce-std" {
         str owner = "dymokomi"
-        str version = "^0.1.4"
+        str version = "^0.2.0"
         str path = "../luce-std"
     }
 
     def dependency "luce-gpu" {
         str owner = "dymokomi"
-        str version = "^0.1.17"
+        str version = "^0.2.0"
         str path = "../luce-gpu"
     }
 
     def dependency "luce-raster" {
         str owner = "dymokomi"
-        str version = "^0.1.1"
+        str version = "^0.2.0"
         str path = "../luce-raster"
     }
 
     def dependency "luce-color" {
         str owner = "dymokomi"
-        str version = "^0.2.3"
+        str version = "^0.3.0"
         str path = "../luce-color"
     }
 
     def dependency "luce-canvas" {
         str owner = "dymokomi"
-        str version = "^0.1.22"
+        str version = "^0.2.0"
         str path = "../luce-canvas"
     }
 
     def dependency "luce-svg" {
         str owner = "dymokomi"
-        str version = "^0.4.6"
+        str version = "^0.5.0"
         str path = "../luce-svg"
     }
 
     def dependency "luce-prism" {
         str owner = "dymokomi"
-        str version = "^0.1.0"
+        str version = "^0.2.0"
         str path = "../luce-prism"
     }
 }

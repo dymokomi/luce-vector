@@ -21,7 +21,7 @@ def dependency "luce-vector" {
 | `graph` | `Graph` (nodes and wires), `evaluate_graph` into a `ShapeList` with a `GraphCache` that computes again only downstream of an edit, the graph in a Prism manifest |
 
 ```luce
-from vector import ShapeSpec, VectorElement, draw_elements
+from luce_vector.vector import ShapeSpec, VectorElement, draw_elements
 
 var no_path: f64[]
 var list: VectorElement[1] = [VectorElement(name = "Box", visible = true,
