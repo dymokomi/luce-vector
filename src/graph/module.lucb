@@ -17,8 +17,8 @@
 #
 #==============================================================================================
 
-import luce_std.math
+from luce_std import math
 import memory
-import luce_prism.prism
+from luce_prism import prism
 from vector import CellMask, ShapeSpec, VectorElement, anchor_values, copy_spec_path, cross, drawable, no_numbers, read_numbers, release_spec_path, shape_values
 from luce_raster.errors import invalid, limit

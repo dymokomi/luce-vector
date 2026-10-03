@@ -24,17 +24,17 @@
 #==============================================================================================
 
 import c as c_api
-import luce_std.files
-import luce_gpu.gpu
+from luce_std import files
+from luce_gpu import gpu
 import interop
-import luce_std.math
+from luce_std import math
 import memory
 import os
-import luce_canvas.pool
-import luce_prism.prism
+from luce_canvas import pool
+from luce_prism import prism
 import strings
-import luce_svg.svg
-import luce_color.transfer
+from luce_svg import svg
+from luce_color import transfer
 from luce_canvas.tiles import Tiles, tile_size, tile_columns, min_u32, max_u32
 from luce_canvas.half import to_half, from_half
 from luce_raster.errors import invalid, limit
