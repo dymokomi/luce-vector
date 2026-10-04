@@ -31,14 +31,12 @@ pub struct SvgVectors:
 ## holds text, which only pixels keep.
 pub func svg_vectors(path: str) -> SvgVectors?!:
     var copied_path: str = ""
-    var bytes: u8[]
     with memory.heap:
         copied_path = try strings.copy(path)
     defer strings.release(copied_path)
-    with memory.heap:
-        bytes = try files.read_limit((c_api.str)copied_path, svg_vector_bytes)
-    defer free(bytes) in memory.heap
-    let parsed = try svg.parse((str)bytes)
+    let bytes = try files.read((c_api.str)copied_path, limit = svg_vector_bytes)
+    defer bytes.release()
+    let parsed = try svg.parse((str)bytes.value)
     defer parsed.release()
     let drawing = parsed.value()
     if drawing.text_count() > 0:
