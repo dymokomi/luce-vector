@@ -43,11 +43,11 @@ pub struct CellPlan:
 
     ## Sort the cells of `reach` for `drawing` (`spec` parsed over the whole
     ## `width` by `height` canvas).
-    pub func make(drawing: const svg.Drawing*, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
+    pub static func make(drawing: const svg.Drawing*, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
         return try CellPlan.make_from(drawing, 0, drawing.contour_count(), spec, reach, width, height)
 
     ## `make` for one element of a drawing of several: its contours `first..<last`.
-    pub func make_from(drawing: const svg.Drawing*, first: usize, last: usize, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
+    pub static func make_from(drawing: const svg.Drawing*, first: usize, last: usize, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
         let columns = (usize)(reach.right - reach.left)
         let rows = (usize)(reach.bottom - reach.top)
         let kinds = try new u8[columns * rows] --- in memory.heap
@@ -257,7 +257,7 @@ pub struct CellMask:
     pub var height: u32
     pub var marks: u8[]
 
-    pub func create(width: u32, height: u32) -> CellMask!:
+    pub static func create(width: u32, height: u32) -> CellMask!:
         let columns = tile_columns(width)
         let rows = tile_columns(height)
         let marks = try new u8[(usize)columns * (usize)rows] --- in memory.heap
@@ -362,7 +362,7 @@ struct ShapeSet:
     var height: u32
 
     ## `specs`, those that cannot draw left out of the drawing but kept in their places.
-    func make(specs: const ShapeSpec[], width: u32, height: u32) -> ShapeSet!:
+    static func make(specs: const ShapeSpec[], width: u32, height: u32) -> ShapeSet!:
         var text = try strings.Builder.create()
         defer text.destroy()
         try svg_open(&text, 0, 0, width, height)

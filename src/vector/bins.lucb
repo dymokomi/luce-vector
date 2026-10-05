@@ -37,7 +37,7 @@ struct Bins:
 
     ## `specs` (each drawable and reaching the canvas) sorted into the bins of a
     ## `width` by `height` canvas, and each bin's parsed.
-    func make(specs: const ShapeSpec[], width: u32, height: u32) -> Bins!:
+    static func make(specs: const ShapeSpec[], width: u32, height: u32) -> Bins!:
         let columns = (tile_columns(width) + bin_cells - 1) // bin_cells
         let rows = (tile_columns(height) + bin_cells - 1) // bin_cells
         let count = (usize)columns * (usize)rows
