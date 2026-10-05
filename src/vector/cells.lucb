@@ -43,14 +43,14 @@ pub struct CellPlan:
 
     ## Sort the cells of `reach` for `drawing` (`spec` parsed over the whole
     ## `width` by `height` canvas).
-    pub static func make(drawing: const svg.Drawing*, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
+    pub func make(drawing: const svg.Drawing*, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
         return try CellPlan.make_from(drawing, 0, drawing.contour_count(), spec, reach, width, height)
 
     ## `make` for one element of a drawing of several: its contours `first..<last`.
-    pub static func make_from(drawing: const svg.Drawing*, first: usize, last: usize, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
+    pub func make_from(drawing: const svg.Drawing*, first: usize, last: usize, spec: ShapeSpec, reach: ShapeReach, width: u32, height: u32) -> CellPlan!:
         let columns = (usize)(reach.right - reach.left)
         let rows = (usize)(reach.bottom - reach.top)
-        let kinds = try alloc u8[columns * rows] in memory.heap
+        let kinds = try new u8[columns * rows] --- in memory.heap
         for index in 0..<kinds.length:
             kinds[index] = cell_outside
         var plan = CellPlan(reach = reach, kinds = kinds, width = width, height = height)
@@ -64,7 +64,7 @@ pub struct CellPlan:
     pub func kind(column: u32, row: u32) -> u8:
         return self.kinds[self.at(column, row)]
 
-    pub mutating func set(column: u32, row: u32, kind: u8):
+    pub func set(column: u32, row: u32, kind: u8):
         self.kinds[self.at(column, row)] = kind
 
     pub func at(column: u32, row: u32) -> usize:
@@ -86,14 +86,14 @@ pub struct CellPlan:
                 total += 1
         return total
 
-    pub mutating func close():
+    pub func close():
         if self.kinds.length > 0:
             free(self.kinds) in memory.heap
         var none_left: u8[]
         self.kinds = none_left
 
     ## Mark every cell within `band` pixels of a segment of any outline `first..<last`.
-    pub mutating func mark_edges(drawing: const svg.Drawing*, first: usize, last: usize, band: f64):
+    pub func mark_edges(drawing: const svg.Drawing*, first: usize, last: usize, band: f64):
         for contour in first..<last:
             let start = drawing.contour_start(contour)
             let size = drawing.contour_size(contour)
@@ -110,7 +110,7 @@ pub struct CellPlan:
                 self.mark_segment(a.x, a.y, b.x, b.y, band)
 
     ## Mark the cells a segment's steps reach, each piece's box grown by `band`.
-    pub mutating func mark_segment(x0: f64, y0: f64, x1: f64, y1: f64, band: f64):
+    pub func mark_segment(x0: f64, y0: f64, x1: f64, y1: f64, band: f64):
         let length = math.hypot(x1 - x0, y1 - y0)
         let steps = math.max(1.0, math.ceil(length / mark_piece))
         var piece: f64 = 0.0
@@ -123,7 +123,7 @@ pub struct CellPlan:
             piece += 1.0
 
     ## Mark the cells of reach a document-pixel box touches.
-    pub mutating func mark_box(low_x: f64, low_y: f64, high_x: f64, high_y: f64):
+    pub func mark_box(low_x: f64, low_y: f64, high_x: f64, high_y: f64):
         let size = (f64)tile_size
         let left = math.max((f64)self.reach.left, math.floor(low_x / size))
         let top = math.max((f64)self.reach.top, math.floor(low_y / size))
@@ -138,9 +138,9 @@ pub struct CellPlan:
     ## Sort the cells no edge touches: inside the fill (nonzero winding at the centre)
     ## or out. A cell past the document's edge is drawn instead, as its clear part
     ## keeps it from being one color throughout.
-    pub mutating func mark_inside(drawing: const svg.Drawing*, first: usize, last: usize) -> !:
+    pub func mark_inside(drawing: const svg.Drawing*, first: usize, last: usize) -> !:
         var capacity: usize = 64
-        var crossings = try alloc Crossing[capacity] in memory.heap
+        var crossings = try new Crossing[capacity] --- in memory.heap
         defer free(crossings) in memory.heap
         let size = (f64)tile_size
         for row in self.reach.top..<self.reach.bottom:
@@ -160,7 +160,7 @@ pub struct CellPlan:
                     if not upward and not downward:
                         continue
                     if count == capacity:
-                        let grown = try alloc Crossing[capacity * 2] in memory.heap
+                        let grown = try new Crossing[capacity * 2] --- in memory.heap
                         memory.copy(grown, crossings, count)
                         free(crossings) in memory.heap
                         crossings = grown
@@ -257,14 +257,14 @@ pub struct CellMask:
     pub var height: u32
     pub var marks: u8[]
 
-    pub static func create(width: u32, height: u32) -> CellMask!:
+    pub func create(width: u32, height: u32) -> CellMask!:
         let columns = tile_columns(width)
         let rows = tile_columns(height)
-        let marks = try alloc u8[(usize)columns * (usize)rows] in memory.heap
+        let marks = try new u8[(usize)columns * (usize)rows] --- in memory.heap
         memory.set(marks, 0)
         return CellMask(columns = columns, rows = rows, width = width, height = height, marks = marks)
 
-    pub mutating func close():
+    pub func close():
         if self.marks.length > 0:
             free(self.marks) in memory.heap
         var none_left: u8[]
@@ -273,16 +273,16 @@ pub struct CellMask:
     pub func marked(column: u32, row: u32) -> bool:
         return self.marks[(usize)row * (usize)self.columns + (usize)column] != 0
 
-    pub mutating func set(column: u32, row: u32):
+    pub func set(column: u32, row: u32):
         self.marks[(usize)row * (usize)self.columns + (usize)column] = 1
 
     ## Mark the cells `element` draws in, when it is shown.
-    pub mutating func mark(element: VectorElement) -> !:
+    pub func mark(element: VectorElement) -> !:
         if element.visible:
             try self.mark_spec(element.spec)
 
     ## Mark the cells every one of `specs` draws in, from one drawing of them all.
-    pub mutating func mark_specs(specs: const ShapeSpec[]) -> !:
+    pub func mark_specs(specs: const ShapeSpec[]) -> !:
         if specs.length == 0:
             return
         var set = try ShapeSet.make(specs, self.width, self.height)
@@ -296,7 +296,7 @@ pub struct CellMask:
             plan.close()
 
     ## Mark the cells `spec` draws in.
-    pub mutating func mark_spec(spec: ShapeSpec) -> !:
+    pub func mark_spec(spec: ShapeSpec) -> !:
         var plan = try spec_plan(spec, self.width, self.height) else return
         for row in plan.reach.top..<plan.reach.bottom:
             for column in plan.reach.left..<plan.reach.right:
@@ -313,7 +313,7 @@ pub struct CellMask:
         return false
 
     ## Every cell marked: the whole layer is drawn again.
-    pub mutating func mark_all():
+    pub func mark_all():
         memory.set(self.marks, 1)
 
     ## How many cells are marked.
@@ -362,7 +362,7 @@ struct ShapeSet:
     var height: u32
 
     ## `specs`, those that cannot draw left out of the drawing but kept in their places.
-    static func make(specs: const ShapeSpec[], width: u32, height: u32) -> ShapeSet!:
+    func make(specs: const ShapeSpec[], width: u32, height: u32) -> ShapeSet!:
         var text = try strings.Builder.create()
         defer text.destroy()
         try svg_open(&text, 0, 0, width, height)
@@ -372,7 +372,7 @@ struct ShapeSet:
         let parsed = try svg.parse(text.view())
         errdefer parsed.release()
         let drawing = parsed.value()
-        let starts = try alloc usize[specs.length + 1] in memory.heap
+        let starts = try new usize[specs.length + 1] --- in memory.heap
         var contour: usize = 0
         for element in 0..<specs.length:
             starts[element] = contour
@@ -388,7 +388,7 @@ struct ShapeSet:
         let reach = shape_reach(spec, self.width, self.height) else return none
         return try CellPlan.make_from(self.parsed.value(), self.starts[at], self.starts[at + 1], spec, reach, self.width, self.height)
 
-    mutating func close():
+    func close():
         free(self.starts) in memory.heap
         self.parsed.release()
 

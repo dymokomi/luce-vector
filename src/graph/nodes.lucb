@@ -92,17 +92,17 @@ pub struct NodeInfo:
     pub var param_count: usize
     pub var defaults: f64[24]
 
-    pub mutating func param(name: str, kind: i64, slot: usize, value: f64, low: f64, high: f64):
+    pub func param(name: str, kind: i64, slot: usize, value: f64, low: f64, high: f64):
         self.params[self.param_count] = ParamInfo(name = name, kind = kind, slot = slot, low = low, high = high)
         self.param_count += 1
         self.defaults[slot] = value
 
-    pub mutating func color(name: str, slot: usize, red: f64, green: f64, blue: f64):
+    pub func color(name: str, slot: usize, red: f64, green: f64, blue: f64):
         self.param(name, param_color, slot, red, 0.0, 1.0)
         self.defaults[slot + 1] = green
         self.defaults[slot + 2] = blue
 
-    pub mutating func input(name: str, port_type: i64, slot: i64):
+    pub func input(name: str, port_type: i64, slot: i64):
         self.inputs[self.input_count] = InputInfo(name = name, port_type = port_type, slot = slot)
         self.input_count += 1
 

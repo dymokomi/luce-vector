@@ -22,7 +22,7 @@ pub struct SvgVectors:
     pub var width: u32
     pub var height: u32
 
-    pub mutating func close():
+    pub func close():
         free_list(self.list)
         var none_left: VectorElement[]
         self.list = none_left
@@ -63,7 +63,7 @@ pub func svg_vectors(path: str) -> SvgVectors?!:
             error(failure.code, failure.message)
         if let spec = found:
             var text: u8[48]
-            let name = format(text, f"Element {list.length + 1}") catch _:
+            let name = strings.format(text, f"Element {list.length + 1}") catch _:
                 recover "Element"
             let element = made_element(name, spec) catch failure:
                 free_list(list)
@@ -99,10 +99,10 @@ func svg_element_spec(drawing: const svg.Drawing*, first: usize, end: usize, sca
         spec.stroke_red = linear(stroke.r)
         spec.stroke_green = linear(stroke.g)
         spec.stroke_blue = linear(stroke.b)
-    let path = try alloc f64[anchors * anchor_values] in memory.heap
+    let path = try new f64[anchors * anchor_values] --- in memory.heap
     spec.path = path
     errdefer release_spec_path(&spec)
-    let sizes = try alloc u32[runs] in memory.heap
+    let sizes = try new u32[runs] --- in memory.heap
     defer free(sizes) in memory.heap
     var at: usize = 0
     var run: usize = 0

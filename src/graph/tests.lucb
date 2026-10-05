@@ -8,18 +8,18 @@
 struct TestGraph:
     var graph: Graph
 
-    mutating func node(kind: i64) -> u32!:
+    func node(kind: i64) -> u32!:
         var made: u32 = 0
         try replace_graph(&self.graph, try graph_with_node(&self.graph, kind, 0.0, 0.0, &made))
         return made
 
-    mutating func link(source: u32, target: u32, port: u32) -> !:
+    func link(source: u32, target: u32, port: u32) -> !:
         try replace_graph(&self.graph, try graph_with_link(&self.graph, source, target, port))
 
-    mutating func set(id: u32, slot: usize, value: f64) -> !:
+    func set(id: u32, slot: usize, value: f64) -> !:
         try replace_graph(&self.graph, try graph_with_value(&self.graph, id, slot, value))
 
-    mutating func close():
+    func close():
         free_graph(&self.graph)
 
 ## `graph` evaluated afresh (no cache kept) into `out`.
@@ -27,7 +27,7 @@ func evaluated(graph: const Graph*, elements: const VectorElement[], out: ShapeL
     var cache: GraphCache
     defer cache.release()
     out.release()
-    discard(try evaluate_graph(graph, elements, &cache, out))
+    _ = try evaluate_graph(graph, elements, &cache, out)
 
 ## Where a shape's own origin lands: its matrix's translation.
 func origin_of(spec: ShapeSpec) -> f64[2]:

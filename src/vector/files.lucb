@@ -47,7 +47,7 @@ pub func write_elements(manifest: prism.Document*, element: str, list: const Vec
             defer path.release()
             try manifest.set(element, try member_name(key, at, "_path"), path)
         if spec.subpaths.length > 0:
-            let runs = try alloc f64[spec.subpaths.length] in memory.heap
+            let runs = try new f64[spec.subpaths.length] --- in memory.heap
             defer free(runs) in memory.heap
             for index in 0..<runs.length:
                 runs[index] = (f64)spec.subpaths[index]
@@ -78,7 +78,7 @@ func read_element(doc: prism.Document*, element: str, at: usize) -> VectorElemen
             if runs.length > 0:
                 free(runs) in memory.heap
         if runs.length > 0:
-            let sizes = try alloc u32[runs.length] in memory.heap
+            let sizes = try new u32[runs.length] --- in memory.heap
             defer free(sizes) in memory.heap
             for index in 0..<runs.length:
                 if runs[index] < 1.0 or runs[index] > (f64)file_anchor_limit:
@@ -104,7 +104,7 @@ pub func read_numbers(doc: prism.Document*, element: str, name: str, step: usize
     let count = value.count()
     if count == 0 or count % step != 0 or count > file_anchor_limit * anchor_values:
         error(invalid, "a vector element's numbers are damaged")
-    let numbers = try alloc f64[count] in memory.heap
+    let numbers = try new f64[count] --- in memory.heap
     errdefer free(numbers) in memory.heap
     for index in 0..<count:
         numbers[index] = try value.number_at(index)
@@ -139,4 +139,4 @@ func integer_named(doc: prism.Document*, element: str, name: str) -> i64!:
 
 ## Element `at`'s member called `suffix` in the manifest: `vector_3_path`.
 func member_name(buffer: u8[], at: usize, suffix: str) -> str!:
-    return try format(buffer, f"vector_{at}{suffix}")
+    return try strings.format(buffer, f"vector_{at}{suffix}")

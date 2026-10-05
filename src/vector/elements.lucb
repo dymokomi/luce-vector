@@ -56,7 +56,7 @@ pub func copied_list(list: const VectorElement[]) -> VectorElement[]!:
     var none_yet: VectorElement[]
     if list.length == 0:
         return none_yet
-    let copies = try alloc VectorElement[list.length] in memory.heap
+    let copies = try new VectorElement[list.length] --- in memory.heap
     for at in 0..<list.length:
         copies[at] = copied_element(list[at]) catch failure:
             for done in 0..<at:
@@ -75,7 +75,7 @@ pub func free_list(list: VectorElement[]):
 ## `list` with `element` put in at `at`, taking both over (freed if it cannot).
 pub func list_with(list: VectorElement[], at: usize, element: VectorElement) -> VectorElement[]!:
     var added = element
-    let grown = alloc VectorElement[list.length + 1] in memory.heap catch failure:
+    let grown = new VectorElement[list.length + 1] --- in memory.heap catch failure:
         release_element(&added)
         free_list(list)
         error(failure.code, failure.message)
@@ -95,7 +95,7 @@ pub func list_without(list: VectorElement[], at: usize) -> VectorElement[]!:
     if list.length == 1:
         free(list) in memory.heap
         return none_left
-    let shrunk = alloc VectorElement[list.length - 1] in memory.heap catch failure:
+    let shrunk = new VectorElement[list.length - 1] --- in memory.heap catch failure:
         # Element `at` is gone already: free the rest around it.
         for index in 0..<list.length:
             if index != at:

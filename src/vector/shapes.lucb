@@ -79,14 +79,14 @@ pub func shape_svg(out: strings.Builder*, spec: ShapeSpec, left: u32, top: u32, 
 ## An SVG document's opening tag over the canvas window from (`left`, `top`).
 func svg_open(out: strings.Builder*, left: u32, top: u32, width: u32, height: u32) -> !:
     var line: u8[256]
-    try out.put(try format(line, f"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{left} {top} {width} {height}\">"))
+    try out.put(try strings.format(line, f"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{left} {top} {width} {height}\">"))
 
 ## `spec` as one SVG element in a group carrying its transform: several of them,
 ## one after another, make a vector layer's drawing in paint order.
 func shape_group(out: strings.Builder*, spec: ShapeSpec) -> !:
     var line: u8[512]
     let m = spec.matrix
-    try out.put(try format(line, f"<g transform=\"matrix({svg_fine(m[0])} {svg_fine(m[1])} {svg_fine(m[2])} {svg_fine(m[3])} {svg_brief(m[4])} {svg_brief(m[5])})\">"))
+    try out.put(try strings.format(line, f"<g transform=\"matrix({svg_fine(m[0])} {svg_fine(m[1])} {svg_fine(m[2])} {svg_fine(m[3])} {svg_brief(m[4])} {svg_brief(m[5])})\">"))
     var fill_text: u8[16]
     var stroke_text: u8[16]
     let fill = try hex_color(fill_text, spec.fill_red, spec.fill_green, spec.fill_blue) if spec.filled and spec.kind != 2 else "none"
@@ -97,33 +97,33 @@ func shape_group(out: strings.Builder*, spec: ShapeSpec) -> !:
     let scale = math.sqrt(math.abs(m[0] * m[3] - m[1] * m[2]))
     let width_in_shape = spec.stroke_width / scale if scale > 1e-9 else spec.stroke_width
     var paint: u8[160]
-    let paints = try format(paint, f"fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{width_in_shape}\" stroke-linejoin=\"miter\"")
+    let paints = try strings.format(paint, f"fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{width_in_shape}\" stroke-linejoin=\"miter\"")
     if spec.kind == 0:
         let rounding = math.min(spec.radius, math.min(math.abs(spec.width), math.abs(spec.height)) * 0.5)
-        try out.put(try format(line, f"<rect x=\"{spec.x}\" y=\"{spec.y}\" width=\"{spec.width}\" height=\"{spec.height}\" rx=\"{rounding}\" {paints}/>"))
+        try out.put(try strings.format(line, f"<rect x=\"{spec.x}\" y=\"{spec.y}\" width=\"{spec.width}\" height=\"{spec.height}\" rx=\"{rounding}\" {paints}/>"))
     elif spec.kind == 1:
-        try out.put(try format(line, f"<ellipse cx=\"{spec.x + spec.width * 0.5}\" cy=\"{spec.y + spec.height * 0.5}\" rx=\"{spec.width * 0.5}\" ry=\"{spec.height * 0.5}\" {paints}/>"))
+        try out.put(try strings.format(line, f"<ellipse cx=\"{spec.x + spec.width * 0.5}\" cy=\"{spec.y + spec.height * 0.5}\" rx=\"{spec.width * 0.5}\" ry=\"{spec.height * 0.5}\" {paints}/>"))
     elif spec.kind == 2:
-        try out.put(try format(line, f"<line x1=\"{spec.x}\" y1=\"{spec.y}\" x2=\"{spec.x + spec.width}\" y2=\"{spec.y + spec.height}\" stroke-linecap=\"round\" {paints}/>"))
+        try out.put(try strings.format(line, f"<line x1=\"{spec.x}\" y1=\"{spec.y}\" x2=\"{spec.x + spec.width}\" y2=\"{spec.y + spec.height}\" stroke-linecap=\"round\" {paints}/>"))
     elif spec.kind == 4 and spec.subpaths.length == 0 and cornered(spec.path):
         # Corners only (a star, a polygon drawn with the Pen): its points, which
         # luce-svg reads and draws without flattening a curve per side.
         try out.put("<polygon points=\"" if spec.closed else "<polyline points=\"")
         for at in 0..<spec.path.length // anchor_values:
-            try out.put(try format(line, f"{svg_brief(spec.path[at * anchor_values])},{svg_brief(spec.path[at * anchor_values + 1])} "))
-        try out.put(try format(line, f"\" stroke-linecap=\"round\" {paints}/>"))
+            try out.put(try strings.format(line, f"{svg_brief(spec.path[at * anchor_values])},{svg_brief(spec.path[at * anchor_values + 1])} "))
+        try out.put(try strings.format(line, f"\" stroke-linecap=\"round\" {paints}/>"))
     elif spec.kind == 4:
         try out.put("<path d=\"")
         try path_d(out, spec)
-        try out.put(try format(line, f"\" stroke-linecap=\"round\" {paints}/>"))
+        try out.put(try strings.format(line, f"\" stroke-linecap=\"round\" {paints}/>"))
     else:
         try out.put("<polygon points=\"")
         for corner in 0..<spec.sides:
             let angle = -math.pi / 2.0 + (f64)corner * 2.0 * math.pi / (f64)spec.sides
             let px = spec.x + spec.width * 0.5 + math.cos(angle) * spec.width * 0.5
             let py = spec.y + spec.height * 0.5 + math.sin(angle) * spec.height * 0.5
-            try out.put(try format(line, f"{svg_brief(px)},{svg_brief(py)} "))
-        try out.put(try format(line, f"\" {paints}/>"))
+            try out.put(try strings.format(line, f"{svg_brief(px)},{svg_brief(py)} "))
+        try out.put(try strings.format(line, f"\" {paints}/>"))
     try out.put("</g>")
 
 ## A coordinate to a ten-thousandth of a pixel, and a matrix's turn and scale to

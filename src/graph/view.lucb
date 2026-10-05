@@ -15,7 +15,7 @@ pub func drawn_elements(list: const VectorElement[], generated: const ShapeList*
     let total = list.length + generated.count
     if total == 0:
         return none_yet
-    let view = try alloc VectorElement[total] in memory.heap
+    let view = try new VectorElement[total] --- in memory.heap
     for at in 0..<list.length:
         view[at] = list[at]
     for at in 0..<generated.count:
@@ -40,7 +40,7 @@ pub func mark_changed_shapes(cells: CellMask*, before: const ShapeList*, after: 
         cells.mark_all()
         return
     # The changed ones gathered (sharing their paths) and marked from one drawing.
-    let changed = try alloc ShapeSpec[before.count + after.count + 1] in memory.heap
+    let changed = try new ShapeSpec[before.count + after.count + 1] --- in memory.heap
     defer free(changed) in memory.heap
     var count: usize = 0
     for at in 0..<common:

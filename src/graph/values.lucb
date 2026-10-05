@@ -24,11 +24,11 @@ pub struct ShapeList:
         return self.specs[..<self.count]
 
     ## `spec` on the end, taken over (its path freed if it cannot be kept).
-    pub mutating func push(spec: ShapeSpec) -> !:
+    pub func push(spec: ShapeSpec) -> !:
         var owned = spec
         if self.count == self.specs.length:
             let capacity = 16 if self.specs.length == 0 else self.specs.length * 2
-            let grown = alloc ShapeSpec[capacity] in memory.heap catch failure:
+            let grown = new ShapeSpec[capacity] --- in memory.heap catch failure:
                 release_spec_path(&owned)
                 error(failure.code, failure.message)
             if self.count > 0:
@@ -39,23 +39,23 @@ pub struct ShapeList:
         self.count += 1
 
     ## A copy of `spec` with a path of its own on the end.
-    pub mutating func push_copy(spec: ShapeSpec) -> !:
+    pub func push_copy(spec: ShapeSpec) -> !:
         var copy = spec
         try copy_spec_path(&copy)
         try self.push(copy)
 
     ## Room for `more` shapes past those held, so a known count grows once.
-    pub mutating func reserve(more: usize) -> !:
+    pub func reserve(more: usize) -> !:
         if self.count + more <= self.specs.length:
             return
-        let grown = try alloc ShapeSpec[self.count + more] in memory.heap
+        let grown = try new ShapeSpec[self.count + more] --- in memory.heap
         if self.count > 0:
             memory.copy(grown, self.specs, self.count)
         if self.specs.length > 0:
             free(self.specs) in memory.heap
         self.specs = grown
 
-    pub mutating func release():
+    pub func release():
         for at in 0..<self.count:
             release_spec_path(&self.specs[at])
         if self.specs.length > 0:
@@ -69,10 +69,10 @@ struct PointList:
     var values: f64[]
     var count: usize
 
-    mutating func push(x: f64, y: f64, angle: f64, scale: f64) -> !:
+    func push(x: f64, y: f64, angle: f64, scale: f64) -> !:
         if (self.count + 1) * 4 > self.values.length:
             let capacity = 256 if self.values.length == 0 else self.values.length * 2
-            let grown = try alloc f64[capacity] in memory.heap
+            let grown = try new f64[capacity] --- in memory.heap
             if self.count > 0:
                 memory.copy(grown, self.values, self.count * 4)
                 free(self.values) in memory.heap
@@ -96,7 +96,7 @@ struct PointList:
     func scale(at: usize) -> f64:
         return self.values[at * 4 + 3]
 
-    mutating func release():
+    func release():
         if self.values.length > 0:
             free(self.values) in memory.heap
         var none_left: f64[]
@@ -132,7 +132,7 @@ struct NodeValue:
     var points: PointList
     var field: Field
 
-    mutating func release():
+    func release():
         self.shapes.release()
         self.points.release()
 
@@ -185,13 +185,13 @@ struct Outline:
     var runs: usize
     var closed: bool
 
-    mutating func clear():
+    func clear():
         self.count = 0
         self.runs = 0
 
-    mutating func begin_run() -> !:
+    func begin_run() -> !:
         if self.runs == self.starts.length:
-            let grown = try alloc usize[16 if self.starts.length == 0 else self.starts.length * 2] in memory.heap
+            let grown = try new usize[16 if self.starts.length == 0 else self.starts.length * 2] --- in memory.heap
             if self.runs > 0:
                 memory.copy(grown, self.starts, self.runs)
                 free(self.starts) in memory.heap
@@ -199,9 +199,9 @@ struct Outline:
         self.starts[self.runs] = self.count
         self.runs += 1
 
-    mutating func put(x: f64, y: f64) -> !:
+    func put(x: f64, y: f64) -> !:
         if (self.count + 1) * 2 > self.points.length:
-            let grown = try alloc f64[256 if self.points.length == 0 else self.points.length * 2] in memory.heap
+            let grown = try new f64[256 if self.points.length == 0 else self.points.length * 2] --- in memory.heap
             if self.count > 0:
                 memory.copy(grown, self.points, self.count * 2)
                 free(self.points) in memory.heap
@@ -214,7 +214,7 @@ struct Outline:
     func run_end(run: usize) -> usize:
         return self.starts[run + 1] if run + 1 < self.runs else self.count
 
-    mutating func release():
+    func release():
         if self.points.length > 0:
             free(self.points) in memory.heap
         if self.starts.length > 0:

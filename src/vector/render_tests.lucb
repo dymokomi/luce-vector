@@ -16,7 +16,7 @@ func whole_canvas_shape(spec: ShapeSpec, width: u32, height: u32) -> f32[]!:
     try shape_svg(&text, spec, 0, 0, width, height)
     let drawing = try svg.parse(text.view())
     defer drawing.release()
-    let pixels = try alloc f32[(usize)width * (usize)height * 4] in memory.heap
+    let pixels = try new f32[(usize)width * (usize)height * 4] --- in memory.heap
     errdefer free(pixels) in memory.heap
     try svg.rasterize_rgba(drawing.value(), width, height, pixels, svg.Color(r = 0.0, g = 0.0, b = 0.0))
     return pixels
@@ -48,7 +48,7 @@ func matches_whole(device: gpu.Device, width: u32, height: u32, spec: ShapeSpec)
     defer free(expected) in memory.heap
     var tiles = try rendered_shape(device, width, height, spec)
     defer tiles.destroy()
-    let found = try alloc f32[expected.length] in memory.heap
+    let found = try new f32[expected.length] --- in memory.heap
     defer free(found) in memory.heap
     try tiles.read(found)
     for index in 0..<expected.length:

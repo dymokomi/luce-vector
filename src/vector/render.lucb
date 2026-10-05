@@ -24,15 +24,15 @@ pub func draw_elements(tiles: Tiles*, list: const VectorElement[], dirty: CellMa
         region = cells.bounds() else return
     # Every cell's kind for the elements together, and whose inside an inside cell is.
     let cell_count = (usize)whole.right * (usize)whole.bottom
-    let kinds = try alloc u8[cell_count] in memory.heap
+    let kinds = try new u8[cell_count] --- in memory.heap
     defer free(kinds) in memory.heap
     memory.set(kinds, cell_outside)
-    let owners = try alloc u32[cell_count] in memory.heap
+    let owners = try new u32[cell_count] --- in memory.heap
     defer free(owners) in memory.heap
     # The elements the region needs.
-    let chosen = try alloc ShapeSpec[list.length if list.length > 0 else 1] in memory.heap
+    let chosen = try new ShapeSpec[list.length if list.length > 0 else 1] --- in memory.heap
     defer free(chosen) in memory.heap
-    let places = try alloc u32[list.length if list.length > 0 else 1] in memory.heap
+    let places = try new u32[list.length if list.length > 0 else 1] --- in memory.heap
     defer free(places) in memory.heap
     var included: usize = 0
     for at in 0..<list.length:
@@ -70,7 +70,7 @@ pub func draw_elements(tiles: Tiles*, list: const VectorElement[], dirty: CellMa
 func draw_insides(painter: WindowPainter*, bins: const Bins*, kinds: u8[], columns: u32, rows: u32, owners: const u32[], elements: usize, tiles: Tiles*) -> !:
     if elements == 0:
         return
-    let samples = try alloc i64[elements] in memory.heap
+    let samples = try new i64[elements] --- in memory.heap
     defer free(samples) in memory.heap
     for owner in 0..<elements:
         samples[owner] = -1
@@ -78,7 +78,7 @@ func draw_insides(painter: WindowPainter*, bins: const Bins*, kinds: u8[], colum
         if kinds[at] == cell_inside and samples[(usize)owners[at]] < 0:
             samples[(usize)owners[at]] = (i64)at
             kinds[at] = cell_sample
-    let uniform = try alloc u8[kinds.length] in memory.heap
+    let uniform = try new u8[kinds.length] --- in memory.heap
     defer free(uniform) in memory.heap
     memory.set(uniform, 0)
     try draw_binned(painter, bins, kinds, columns, rows, cell_sample, tiles, uniform)

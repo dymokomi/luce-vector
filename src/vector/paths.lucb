@@ -25,11 +25,11 @@ pub func copy_spec_path(spec: ShapeSpec*) -> !:
     spec.path = no_path
     spec.subpaths = no_subpaths
     if path.length > 0:
-        let copy = try alloc f64[path.length] in memory.heap
+        let copy = try new f64[path.length] --- in memory.heap
         memory.copy(copy, path, path.length)
         spec.path = copy
     if subpaths.length > 0:
-        let runs = alloc u32[subpaths.length] in memory.heap catch failure:
+        let runs = new u32[subpaths.length] --- in memory.heap catch failure:
             release_spec_path(spec)
             error(failure.code, failure.message)
         memory.copy(runs, subpaths, subpaths.length)
@@ -53,7 +53,7 @@ pub func owned_path(values: const f64[]) -> f64[]!:
     for value in values:
         if not math.is_finite(value):
             error(invalid, "path values must be finite")
-    let path = try alloc f64[values.length] in memory.heap
+    let path = try new f64[values.length] --- in memory.heap
     memory.copy(path, values, values.length)
     return path
 
@@ -67,7 +67,7 @@ func owned_subpaths(sizes: const u32[], anchors: usize) -> u32[]!:
         total += (usize)size
     if total != anchors:
         error(invalid, "the subpaths must hold every anchor of the path")
-    let runs = try alloc u32[sizes.length] in memory.heap
+    let runs = try new u32[sizes.length] --- in memory.heap
     memory.copy(runs, sizes, sizes.length)
     return runs
 
@@ -94,7 +94,7 @@ func path_d(out: strings.Builder*, spec: ShapeSpec) -> !:
 func run_d(out: strings.Builder*, path: const f64[], first: usize, end: usize, closed: bool) -> !:
     var text: u8[256]
     let a = first * anchor_values
-    try out.put(try format(text, f"M{path[a]} {path[a + 1]}"))
+    try out.put(try strings.format(text, f"M{path[a]} {path[a + 1]}"))
     for at in first + 1..<end:
         try curve_to(out, path, at - 1, at)
     if closed and end - first > 1:
@@ -106,4 +106,4 @@ func curve_to(out: strings.Builder*, path: const f64[], start: usize, end: usize
     let a = start * anchor_values
     let b = end * anchor_values
     var text: u8[256]
-    try out.put(try format(text, f" C{path[a + 4]} {path[a + 5]} {path[b + 2]} {path[b + 3]} {path[b]} {path[b + 1]}"))
+    try out.put(try strings.format(text, f" C{path[a + 4]} {path[a + 5]} {path[b + 2]} {path[b + 3]} {path[b]} {path[b + 1]}"))

@@ -26,7 +26,7 @@ let file_node_limit: usize = 100000
 pub func write_graph(manifest: prism.Document*, element: str, graph: const Graph*) -> !:
     if not graph.present():
         return
-    let nodes = try alloc f64[graph.nodes.length * node_file_values] in memory.heap
+    let nodes = try new f64[graph.nodes.length * node_file_values] --- in memory.heap
     defer free(nodes) in memory.heap
     for at in 0..<graph.nodes.length:
         let node = graph.nodes[at]
@@ -39,7 +39,7 @@ pub func write_graph(manifest: prism.Document*, element: str, graph: const Graph
             nodes[base + 4 + slot] = node.values[slot]
     try put_numbers(manifest, element, "graph_nodes", nodes)
     if graph.links.length > 0:
-        let links = try alloc f64[graph.links.length * 3] in memory.heap
+        let links = try new f64[graph.links.length * 3] --- in memory.heap
         defer free(links) in memory.heap
         for at in 0..<graph.links.length:
             links[at * 3] = (f64)graph.links[at].source_id
@@ -74,7 +74,7 @@ pub func read_graph(doc: prism.Document*, element: str) -> Graph?!:
     defer free(state) in memory.heap
     var graph: Graph
     errdefer free_graph(&graph)
-    graph.nodes = try alloc GraphNode[count] in memory.heap
+    graph.nodes = try new GraphNode[count] --- in memory.heap
     var highest: u32 = 0
     for at in 0..<count:
         let base = at * node_file_values

@@ -72,10 +72,10 @@ pub func copied_graph(graph: const Graph*) -> Graph!:
     copy.nodes = no_nodes
     copy.links = no_links
     if graph.nodes.length > 0:
-        copy.nodes = try alloc GraphNode[graph.nodes.length] in memory.heap
+        copy.nodes = try new GraphNode[graph.nodes.length] --- in memory.heap
         memory.copy(copy.nodes, graph.nodes, graph.nodes.length)
     if graph.links.length > 0:
-        copy.links = alloc GraphLink[graph.links.length] in memory.heap catch failure:
+        copy.links = new GraphLink[graph.links.length] --- in memory.heap catch failure:
             free_graph(&copy)
             error(failure.code, failure.message)
         memory.copy(copy.links, graph.links, graph.links.length)
@@ -97,7 +97,7 @@ pub func free_graph(graph: Graph*):
 pub func graph_with_node(graph: const Graph*, kind: i64, x: f64, y: f64, made: u32*) -> Graph!:
     if kind < 0 or kind >= node_kinds:
         error(invalid, "no such node kind")
-    let nodes = try alloc GraphNode[graph.nodes.length + 1] in memory.heap
+    let nodes = try new GraphNode[graph.nodes.length + 1] --- in memory.heap
     errdefer free(nodes) in memory.heap
     if graph.nodes.length > 0:
         memory.copy(nodes, graph.nodes, graph.nodes.length)
@@ -108,7 +108,7 @@ pub func graph_with_node(graph: const Graph*, kind: i64, x: f64, y: f64, made: u
     var no_links: GraphLink[]
     grown.links = no_links
     if graph.links.length > 0:
-        grown.links = try alloc GraphLink[graph.links.length] in memory.heap
+        grown.links = try new GraphLink[graph.links.length] --- in memory.heap
         memory.copy(grown.links, graph.links, graph.links.length)
     grown.next_id = id
     *made = id
@@ -130,10 +130,10 @@ pub func graph_without_nodes(graph: const Graph*, ids: const u32[]) -> Graph!:
     result.nodes = no_nodes
     result.links = no_links
     if kept_nodes > 0:
-        result.nodes = try alloc GraphNode[kept_nodes] in memory.heap
+        result.nodes = try new GraphNode[kept_nodes] --- in memory.heap
     errdefer free_graph(&result)
     if kept_links > 0:
-        result.links = try alloc GraphLink[kept_links] in memory.heap
+        result.links = try new GraphLink[kept_links] --- in memory.heap
     var at: usize = 0
     for node in graph.nodes:
         if not holds(ids, node.id):
@@ -173,7 +173,7 @@ pub func graph_with_link(graph: const Graph*, source_id: u32, to: u32, port: u32
     if let at = result.link_into(to, port):
         result.links[at].source_id = source_id
         return result
-    let links = try alloc GraphLink[result.links.length + 1] in memory.heap
+    let links = try new GraphLink[result.links.length + 1] --- in memory.heap
     if result.links.length > 0:
         memory.copy(links, result.links, result.links.length)
         free(result.links) in memory.heap
@@ -197,7 +197,7 @@ pub func graph_without_link(graph: const Graph*, to: u32, port: u32) -> Graph!:
     errdefer free_graph(&result)
     var kept: GraphLink[]
     if graph.links.length > 1:
-        kept = try alloc GraphLink[graph.links.length - 1] in memory.heap
+        kept = try new GraphLink[graph.links.length - 1] --- in memory.heap
         var to_at: usize = 0
         for index in 0..<graph.links.length:
             if index != at:

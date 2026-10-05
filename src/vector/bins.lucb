@@ -37,20 +37,20 @@ struct Bins:
 
     ## `specs` (each drawable and reaching the canvas) sorted into the bins of a
     ## `width` by `height` canvas, and each bin's parsed.
-    static func make(specs: const ShapeSpec[], width: u32, height: u32) -> Bins!:
+    func make(specs: const ShapeSpec[], width: u32, height: u32) -> Bins!:
         let columns = (tile_columns(width) + bin_cells - 1) // bin_cells
         let rows = (tile_columns(height) + bin_cells - 1) // bin_cells
         let count = (usize)columns * (usize)rows
         var bins = Bins(columns = columns, rows = rows, width = width, height = height)
         errdefer bins.close()
-        bins.offsets = try alloc u32[count + 1] in memory.heap
+        bins.offsets = try new u32[count + 1] --- in memory.heap
         for at in 0..<bins.offsets.length:
             bins.offsets[at] = 0
-        bins.sets = try alloc ShapeSet[count] in memory.heap
-        bins.parsed = try alloc bool[count] in memory.heap
+        bins.sets = try new ShapeSet[count] --- in memory.heap
+        bins.parsed = try new bool[count] --- in memory.heap
         for at in 0..<count:
             bins.parsed[at] = false
-        bins.home = try alloc u32[specs.length + 1] in memory.heap
+        bins.home = try new u32[specs.length + 1] --- in memory.heap
         for spec in specs:
             let reach = shape_reach(spec, width, height) else continue
             for row in reach.top // bin_cells..<(reach.bottom - 1) // bin_cells + 1:
@@ -58,8 +58,8 @@ struct Bins:
                     bins.offsets[(usize)row * (usize)columns + (usize)column + 1] += 1
         for at in 1..<bins.offsets.length:
             bins.offsets[at] += bins.offsets[at - 1]
-        bins.members = try alloc u32[(usize)bins.offsets[count] + 1] in memory.heap
-        let filled = try alloc u32[count] in memory.heap
+        bins.members = try new u32[(usize)bins.offsets[count] + 1] --- in memory.heap
+        let filled = try new u32[count] --- in memory.heap
         defer free(filled) in memory.heap
         for at in 0..<count:
             filled[at] = 0
@@ -74,7 +74,7 @@ struct Bins:
                     bins.members[(usize)bins.offsets[place] + (usize)filled[place]] = (u32)at
                     filled[place] += 1
         # Each bin's elements as one drawing.
-        let listed = try alloc ShapeSpec[specs.length + 1] in memory.heap
+        let listed = try new ShapeSpec[specs.length + 1] --- in memory.heap
         defer free(listed) in memory.heap
         for place in 0..<count:
             let first = (usize)bins.offsets[place]
@@ -96,7 +96,7 @@ struct Bins:
             return none
         return try self.sets[place].plan((usize)self.home[at], spec)
 
-    mutating func close():
+    func close():
         for place in 0..<self.parsed.length:
             if self.parsed[place]:
                 self.sets[place].close()

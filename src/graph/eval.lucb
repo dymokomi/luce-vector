@@ -30,7 +30,7 @@ struct CacheEntry:
 pub struct GraphCache:
     pub var entries: CacheEntry[]
 
-    pub mutating func release():
+    pub func release():
         for at in 0..<self.entries.length:
             self.entries[at].value.release()
         if self.entries.length > 0:
@@ -58,7 +58,7 @@ pub func evaluate_graph(graph: const Graph*, elements: const VectorElement[], ca
         cache.release()
         return 0
     # Carry each node's cached value over by id; what no node claims is freed.
-    let entries = try alloc CacheEntry[count] in memory.heap
+    let entries = try new CacheEntry[count] --- in memory.heap
     for at in 0..<count:
         entries[at] = CacheEntry(id = graph.nodes[at].id, stamp = 0, ready = false, value = NodeValue())
         for old in 0..<cache.entries.length:
@@ -71,7 +71,7 @@ pub func evaluate_graph(graph: const Graph*, elements: const VectorElement[], ca
                 break
     cache.release()
     cache.entries = entries
-    let states = try alloc u8[count] in memory.heap
+    let states = try new u8[count] --- in memory.heap
     defer free(states) in memory.heap
     memory.set(states, 0)
     var run = Evaluation(graph = graph, elements = elements, entries = entries, states = states, scratch = Outline(), computed = 0)
@@ -252,7 +252,7 @@ func node_paint(run: const Evaluation*, node: GraphNode, sources: i64[6], port: 
 ## corners at `inner` of the way out.
 func star_path(spec: ShapeSpec*, points: usize, inner: f64) -> !:
     let corners = points * 2
-    let path = try alloc f64[corners * anchor_values] in memory.heap
+    let path = try new f64[corners * anchor_values] --- in memory.heap
     for corner in 0..<corners:
         let angle = -math.pi / 2.0 + (f64)corner * math.pi / (f64)points
         let reach = 1.0 if corner % 2 == 0 else inner
@@ -342,7 +342,7 @@ func scatter_points(run: Evaluation*, node: GraphNode, sources: i64[6], value: N
     let shapes = run.entries[(usize)sources[0]].value.shapes.view()
     box = try shapes_box(shapes, &run.scratch) else return
     # Each shape's outline once, then tries until enough land inside one.
-    var outlines = try alloc Outline[shapes.length] in memory.heap
+    var outlines = try new Outline[shapes.length] --- in memory.heap
     for at in 0..<shapes.length:
         outlines[at] = Outline()
     defer:
