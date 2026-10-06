@@ -1,7 +1,7 @@
 #prisma 4.0
 def package "luce-vector" {
     str owner = "dymokomi"
-    str version = "0.5.0"
+    str version = "0.6.0"
     str kind = "package"
     str language = "luce-base"
     str description = "Vector layers for luced-2d: shapes and Bézier paths drawn into luce-canvas tiles through luce-svg only where their edges are, redrawn only where an edit reaches, a node graph that generates shapes, their Prism files and SVG import."
