@@ -10,10 +10,10 @@
 
 ## `spec` parsed over the `width` by `height` canvas, its points in document pixels.
 pub func spec_drawing(spec: ShapeSpec, width: u32, height: u32) -> interop.Reference[svg.Drawing]!:
-    var text = try strings.Builder.create()
+    var text: collections.Buffer
     defer text.destroy()
     try shape_svg(&text, spec, 0, 0, width, height)
-    return try svg.parse(text.view())
+    return try svg.parse(text.text())
 
 ## Whether (`x`, `y`) is on `spec`: inside its fill by the nonzero rule, or near its outline.
 pub func spec_hit(spec: ShapeSpec, width: u32, height: u32, x: f64, y: f64, reach: f64) -> bool!:

@@ -78,7 +78,7 @@ pub func drawable(spec: ShapeSpec) -> bool:
 ## The SVG path data of `spec`'s anchors: each run a move to its first anchor,
 ## then a cubic curve to each next one from the handle going out to the handle
 ## coming in, and when `closed` one back to its first, then Z.
-func path_d(out: strings.Builder*, spec: ShapeSpec) -> !:
+func path_d(out: collections.Buffer*, spec: ShapeSpec) -> !:
     let count = spec.path.length // anchor_values
     if count == 0:
         return
@@ -91,19 +91,19 @@ func path_d(out: strings.Builder*, spec: ShapeSpec) -> !:
         first += (usize)size
 
 ## One run of anchors, `first..<end`, as path data.
-func run_d(out: strings.Builder*, path: const f64[], first: usize, end: usize, closed: bool) -> !:
+func run_d(out: collections.Buffer*, path: const f64[], first: usize, end: usize, closed: bool) -> !:
     var text: u8[256]
     let a = first * anchor_values
-    try out.put(try strings.format(text, f"M{path[a]} {path[a + 1]}"))
+    try out.put_text(try strings.format(text, f"M{path[a]} {path[a + 1]}"))
     for at in first + 1..<end:
         try curve_to(out, path, at - 1, at)
     if closed and end - first > 1:
         try curve_to(out, path, end - 1, first)
-        try out.put("Z")
+        try out.put_text("Z")
 
 ## ` C` from anchor `start`'s out-handle and anchor `end`'s in-handle to anchor `end`.
-func curve_to(out: strings.Builder*, path: const f64[], start: usize, end: usize) -> !:
+func curve_to(out: collections.Buffer*, path: const f64[], start: usize, end: usize) -> !:
     let a = start * anchor_values
     let b = end * anchor_values
     var text: u8[256]
-    try out.put(try strings.format(text, f" C{path[a + 4]} {path[a + 5]} {path[b + 2]} {path[b + 3]} {path[b]} {path[b + 1]}"))
+    try out.put_text(try strings.format(text, f" C{path[a + 4]} {path[a + 5]} {path[b + 2]} {path[b + 3]} {path[b]} {path[b + 1]}"))

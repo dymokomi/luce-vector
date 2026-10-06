@@ -344,10 +344,10 @@ func spec_plan(spec: ShapeSpec, width: u32, height: u32) -> CellPlan?!:
     if not drawable(spec):
         return none
     let reach = shape_reach(spec, width, height) else return none
-    var text = try strings.Builder.create()
+    var text: collections.Buffer
     defer text.destroy()
     try shape_svg(&text, spec, 0, 0, width, height)
-    let parsed = try svg.parse(text.view())
+    let parsed = try svg.parse(text.text())
     defer parsed.release()
     return try CellPlan.make(parsed.value(), spec, reach, width, height)
 
@@ -363,13 +363,13 @@ struct ShapeSet:
 
     ## `specs`, those that cannot draw left out of the drawing but kept in their places.
     static func make(specs: const ShapeSpec[], width: u32, height: u32) -> ShapeSet!:
-        var text = try strings.Builder.create()
+        var text: collections.Buffer
         defer text.destroy()
         try svg_open(&text, 0, 0, width, height)
         for spec in specs:
             try shape_group(&text, spec if drawable(spec) else empty_shape())
-        try text.put("</svg>")
-        let parsed = try svg.parse(text.view())
+        try text.put_text("</svg>")
+        let parsed = try svg.parse(text.text())
         errdefer parsed.release()
         let drawing = parsed.value()
         let starts = try new usize[specs.length + 1] --- in memory.heap

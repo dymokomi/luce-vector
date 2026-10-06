@@ -25,6 +25,7 @@
 
 import c as c_api
 from luce_std import files
+from luce_std import collections
 from luce_gpu import gpu
 import interop
 from luce_std import math
