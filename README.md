@@ -36,9 +36,7 @@ graph on a document's layers, with their history. See
 
 ## Test
 
-`./test.sh` runs both modules' tests natively and through the C backend with
-the sibling `luce-base` checkout's compiler (`--base` picks another). GPU tests
-skip where no device opens.
+`luc test` runs both modules' tests. GPU tests skip where no device opens.
 
 ## License
 
